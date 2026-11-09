@@ -1,0 +1,352 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="每日待办" Width="574" Height="690" MinWidth="460" MinHeight="490"
+        WindowStartupLocation="CenterScreen" Background="#F3F6F3" Foreground="#1C3028"
+        FontFamily="Microsoft YaHei UI" FontSize="14" Language="zh-CN"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+    <Window.Resources>
+        <Style x:Key="ActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="13,7"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Foreground" Value="#285846"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Surface" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.83"/>
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#81A99A"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Surface" Property="BorderBrush" Value="#549683"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.65"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Surface" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+            <Setter Property="Background" Value="#14634D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style x:Key="Field" TargetType="TextBox">
+            <Setter Property="Foreground" Value="#1C3028"/>
+            <Setter Property="Background" Value="#FAFCFA"/>
+            <Setter Property="BorderBrush" Value="#D1DDD5"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="FieldBorder" CornerRadius="7" Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}" BorderBrush="{TemplateBinding BorderBrush}">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="{TemplateBinding VerticalContentAlignment}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                <Setter TargetName="FieldBorder" Property="BorderBrush" Value="#29806A"/>
+                                <Setter TargetName="FieldBorder" Property="Background" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="TaskCheck" TargetType="CheckBox">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="CheckBox">
+                        <Grid Width="30" Height="32" Background="Transparent">
+                            <Border x:Name="Box" Width="20" Height="20" CornerRadius="6" Background="White"
+                                    BorderBrush="#879E92" BorderThickness="1"/>
+                            <Path x:Name="Tick" Data="M0,4 L4,8 L11,0" Stroke="White" StrokeThickness="1.7"
+                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                  HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Box" Property="Background" Value="#14634D"/>
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#14634D"/>
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#14634D"/>
+                                <Setter TargetName="Box" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Box" Property="BorderBrush" Value="#14634D"/>
+                                <Setter TargetName="Box" Property="BorderThickness" Value="2"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <Style x:Key="ViewButton" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="#4F665A"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="6,7"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="Tab" Background="Transparent" BorderThickness="1"
+                                BorderBrush="Transparent" CornerRadius="7" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Tab" Property="Background" Value="#EAF0E7"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Tab" Property="Background" Value="#14634D"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="FontWeight" Value="SemiBold"/>
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Tab" Property="BorderBrush" Value="#5D9F88"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+    <Grid x:Name="MainLayout" Margin="20,16,20,18">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel x:Name="Masthead" Margin="0,0,0,12">
+            <Button x:Name="PinButton" DockPanel.Dock="Right" VerticalAlignment="Center" Content="窗口置顶"
+                    Style="{StaticResource ActionButton}" Background="White" BorderBrush="#D8E3DC"
+                    FontSize="12" Padding="10,6" ToolTip="让窗口显示在其他窗口上方"/>
+            <Border DockPanel.Dock="Left" Width="37" Height="37" CornerRadius="10" Background="#14634D"
+                    VerticalAlignment="Center" Margin="0,0,10,0">
+                <Path Data="M 0,6 L 5,11 L 15,0" Stroke="#F1F8F1" StrokeThickness="2.2" StrokeLineJoin="Round"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="每日待办" FontSize="22" FontWeight="Bold"/>
+                <TextBlock x:Name="DateLabel" FontSize="12" Foreground="#52685D" Margin="0,1,0,0"/>
+            </StackPanel>
+        </DockPanel>
+
+        <Border x:Name="ViewNavigation" Grid.Row="1" CornerRadius="11" Padding="4" Background="#E7EEE9" Margin="0,0,0,11">
+            <UniformGrid Rows="1">
+                <RadioButton x:Name="TodayTab" Content="今天" GroupName="View" Margin="0,0,2,0"
+                             IsChecked="True" Style="{StaticResource ViewButton}"/>
+                <RadioButton x:Name="UpcomingTab" Content="计划" GroupName="View" Margin="1,0"
+                             Style="{StaticResource ViewButton}"/>
+                <RadioButton x:Name="RepeatTab" Content="重复事项" GroupName="View" Margin="1,0"
+                             Style="{StaticResource ViewButton}"/>
+                <RadioButton x:Name="DoneTab" Content="已完成" GroupName="View" Margin="1,0"
+                             Style="{StaticResource ViewButton}"/>
+                <RadioButton x:Name="CalendarTab" Content="日历" GroupName="View" Margin="2,0,0,0"
+                             Style="{StaticResource ViewButton}"/>
+            </UniformGrid>
+        </Border>
+
+        <Border x:Name="TodaySummary" Grid.Row="2" CornerRadius="13" Background="#193D32"
+                Padding="14,9,14,11" Margin="0,0,0,11">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock x:Name="ProgressTitle" Text="今日进度" FontSize="12" Foreground="#C9DDD1"/>
+                    <TextBlock x:Name="ProgressLabel" FontSize="16" FontWeight="SemiBold" Foreground="#FFFFFF" Margin="0,1,0,0"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
+                        <TextBlock x:Name="CatStreak" FontSize="11" Foreground="#C9DDD1" VerticalAlignment="Center"/>
+                        <Button x:Name="CatGalleryButton" Content="猫窝" FontSize="11" Margin="6,0,0,0"
+                                Style="{StaticResource ActionButton}" Foreground="#F1F9EC" Background="#2D5244"
+                                Padding="5,1" ToolTip="查看和切换已解锁的小猫"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock x:Name="RemainingLabel" FontSize="28" FontWeight="SemiBold" Foreground="#D3EBAE"/>
+                        <TextBlock Text=" 项待办" FontSize="12" Foreground="#DCECE2" VerticalAlignment="Bottom" Margin="4,0,0,6"/>
+                    </StackPanel>
+                    <Button x:Name="CatTapButton" Style="{StaticResource ActionButton}" Margin="10,0,0,0"
+                            Padding="1" Background="#22493B" BorderBrush="#466A5B" ToolTip="点一下，小猫会拍爪">
+                        <Image x:Name="ProgressCat" Width="65" Height="50"
+                               RenderOptions.BitmapScalingMode="NearestNeighbor" IsHitTestVisible="False"/>
+                    </Button>
+                </StackPanel>
+                <Border Grid.Row="1" Grid.ColumnSpan="2" CornerRadius="3" Background="#486458" Height="5" Margin="0,8,0,0">
+                    <Grid x:Name="ProgressTrack" ClipToBounds="True">
+                        <Border x:Name="ProgressFill" Background="#CDE89F" CornerRadius="3"
+                                Width="0" HorizontalAlignment="Left"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <Border x:Name="QuickCapture" Grid.Row="3" Margin="0,0,0,11" Background="#FFFFFF" CornerRadius="12"
+                BorderBrush="#D9E4DD" BorderThickness="1" Padding="12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid Margin="0,0,8,0">
+                    <TextBox x:Name="QuickTitle" Height="39" MaxLength="200" Padding="11,0"
+                             Style="{StaticResource Field}" AutomationProperties.Name="新待办事项"/>
+                    <TextBlock x:Name="Placeholder" Text="添加一项待办…" Foreground="#5A7064"
+                               VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False"/>
+                </Grid>
+                <Button x:Name="AddButton" Grid.Column="1" Content="添加" MinWidth="68"
+                        Style="{StaticResource PrimaryButton}" IsEnabled="False"/>
+                <DockPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="1,8,1,0">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                        <TextBlock Text="提醒" Foreground="#52685D" FontSize="12"
+                                   VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <Grid>
+                            <TextBox x:Name="QuickReminder" Width="65" Height="28" MaxLength="8" Padding="6,0"
+                                     Style="{StaticResource Field}" FontSize="12" ToolTip="例如 09:30，留空表示不设提醒"
+                                     AutomationProperties.Name="新待办提醒时间"/>
+                            <TextBlock x:Name="ReminderPlaceholder" Text="09:30" Foreground="#6D8176"
+                                       FontSize="12" IsHitTestVisible="False" VerticalAlignment="Center" Margin="9,0,0,0"/>
+                        </Grid>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="日期" Foreground="#52685D" FontSize="12"
+                                   VerticalAlignment="Center" Margin="0,0,5,0"/>
+                        <ComboBox x:Name="QuickWhen" Width="88" Height="28" FontSize="12" SelectedIndex="0"
+                                  BorderBrush="#D1DDD5" VerticalContentAlignment="Center"
+                                  AutomationProperties.Name="新待办计划日期">
+                            <ComboBoxItem Content="今天"/>
+                            <ComboBoxItem Content="明天"/>
+                            <ComboBoxItem Content="自选日期"/>
+                        </ComboBox>
+                        <DatePicker x:Name="QuickDate" Width="105" Margin="5,0,0,0" FontSize="12"
+                                    SelectedDateFormat="Short" Visibility="Collapsed"
+                                    AutomationProperties.Name="选择新待办日期">
+                            <DatePicker.Resources>
+                                <Style TargetType="DatePickerTextBox">
+                                    <Setter Property="IsReadOnly" Value="True"/>
+                                </Style>
+                            </DatePicker.Resources>
+                        </DatePicker>
+                    </StackPanel>
+                </DockPanel>
+                <ContentControl x:Name="QuickRepeatHost" Grid.Row="2" Grid.ColumnSpan="2" Margin="1,7,1,0"
+                                HorizontalContentAlignment="Stretch" Focusable="False"/>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="4" Background="White" CornerRadius="12" BorderThickness="1"
+                BorderBrush="#D9E4DD" Padding="12,9,12,10">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Grid x:Name="ListHeader" Margin="2,2,2,5">
+                    <TextBlock x:Name="ListTitle" Text="今日清单" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border x:Name="CountPill" HorizontalAlignment="Right" Background="#EAF1EC" CornerRadius="8" Padding="8,3">
+                        <TextBlock x:Name="CountLabel" FontSize="12" Foreground="#3F6353" VerticalAlignment="Center"/>
+                    </Border>
+                </Grid>
+                <ScrollViewer x:Name="TaskScroll" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel x:Name="TaskList" Margin="0,2,0,2"/>
+                </ScrollViewer>
+                <StackPanel x:Name="EmptyPanel" Grid.Row="1" VerticalAlignment="Center"
+                            HorizontalAlignment="Center" Margin="12,0,12,8">
+                    <Border CornerRadius="12" Width="70" Height="53" Background="#EAF3E9" Margin="0,0,0,8">
+                        <Image x:Name="EmptyCat" Width="52" Height="40" RenderOptions.BitmapScalingMode="NearestNeighbor"
+                               IsHitTestVisible="False"/>
+                    </Border>
+                    <TextBlock x:Name="EmptyTitle" TextAlignment="Center" FontSize="16" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="EmptyHint" TextAlignment="Center" Foreground="#566D60"
+                               FontSize="12" Margin="0,5,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+                <ScrollViewer x:Name="CalendarView" Grid.Row="1" Visibility="Collapsed"
+                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Margin="2,2,2,4">
+                        <Grid Margin="3,0,3,5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="CalendarMonth" FontSize="20" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="CalendarMonthTotal" FontSize="12" Foreground="#566D60" Margin="0,1,0,0"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button x:Name="CalendarPrevious" Content="‹" Style="{StaticResource ActionButton}"
+                                        FontSize="18" MinWidth="32" Padding="6,2" ToolTip="上个月"
+                                        AutomationProperties.Name="上个月"/>
+                                <Button x:Name="CalendarGoToday" Content="回到今天" Style="{StaticResource ActionButton}"
+                                        FontSize="12" Padding="7,5" Background="#EAF0E7" Margin="3,0"/>
+                                <Button x:Name="CalendarNext" Content="›" Style="{StaticResource ActionButton}"
+                                        FontSize="18" MinWidth="32" Padding="6,2" ToolTip="下个月"
+                                        AutomationProperties.Name="下个月"/>
+                            </StackPanel>
+                        </Grid>
+                        <UniformGrid Rows="1" Columns="7" Margin="0,1,0,2">
+                            <UniformGrid.Resources>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                                    <Setter Property="FontSize" Value="12"/>
+                                    <Setter Property="Foreground" Value="#566D60"/>
+                                </Style>
+                            </UniformGrid.Resources>
+                            <TextBlock Text="周一"/>
+                            <TextBlock Text="周二"/>
+                            <TextBlock Text="周三"/>
+                            <TextBlock Text="周四"/>
+                            <TextBlock Text="周五"/>
+                            <TextBlock Text="周六"/>
+                            <TextBlock Text="周日"/>
+                        </UniformGrid>
+                        <UniformGrid x:Name="CalendarDays" Columns="7"
+                                     KeyboardNavigation.TabNavigation="Once"
+                                     KeyboardNavigation.DirectionalNavigation="Contained"/>
+                        <Border CornerRadius="8" Background="#F2F5EF" Margin="2,8,2,0" Padding="10,8">
+                            <StackPanel>
+                                <TextBlock x:Name="CalendarDayTitle" FontSize="14" FontWeight="SemiBold"/>
+                                <TextBlock x:Name="CalendarDaySummary" FontSize="12" Foreground="#566D60"
+                                           Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                <StackPanel x:Name="CalendarDayRecords"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

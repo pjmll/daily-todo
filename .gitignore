@@ -1,0 +1,6 @@
+*.exe
+*.lnk
+*.[Tt][Mm][Pp]
+/swap-check-*/
+tasks.json
+cats.json
