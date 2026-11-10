@@ -25,8 +25,9 @@ namespace DailyTodo
         public int DaysUntilReward { get; private set; }
         public string NewCats { get; private set; }
         public bool HasStorageError { get; private set; }
-        public int UnlockedCount { get { return saved.Unlocked.Count; } }
-        public PixelCat.Skin Selected { get { return PixelCat.Skins.First(skin => skin.Id == saved.Selected); } }
+        public IReadOnlyList<DeskPet.Skin> Catalog { get; private set; }
+        public int UnlockedCount { get { return Catalog.Count(IsUnlocked); } }
+        public DeskPet.Skin Selected { get { return Catalog.FirstOrDefault(skin => skin.Id == saved.Selected) ?? Catalog[0]; } }
 
         [DataContract]
         private sealed class Progress
@@ -39,7 +40,8 @@ namespace DailyTodo
         public CatCollection(string path)
         {
             this.path = path;
-            var starter = PixelCat.Skins[0].Id;
+            Catalog = DeskPet.LoadCatalog(Path.GetDirectoryName(path));
+            var starter = Catalog[0].Id;
             saved = new Progress { Unlocked = new List<string> { starter }, Selected = starter };
             try
             {
@@ -49,7 +51,7 @@ namespace DailyTodo
                     if (loaded == null || loaded.Unlocked == null || !loaded.Unlocked.Contains(starter) ||
                         !loaded.Unlocked.Contains(loaded.Selected) ||
                         loaded.Unlocked.Distinct().Count() != loaded.Unlocked.Count ||
-                        loaded.Unlocked.Any(id => !PixelCat.Skins.Any(skin => skin.Id == id)))
+                        loaded.Unlocked.Any(string.IsNullOrWhiteSpace))
                         throw new InvalidDataException("Invalid cat collection.");
                     saved = loaded;
                 }
@@ -64,12 +66,12 @@ namespace DailyTodo
             }
         }
 
-        public bool IsUnlocked(PixelCat.Skin skin)
+        public bool IsUnlocked(DeskPet.Skin skin)
         {
             return saved.Unlocked.Contains(skin.Id);
         }
 
-        public bool Select(PixelCat.Skin skin)
+        public bool Select(DeskPet.Skin skin)
         {
             if (!IsUnlocked(skin)) return false;
             if (saved.Selected == skin.Id) return true;
@@ -90,8 +92,8 @@ namespace DailyTodo
                 .Select(task => task.Completed.Value.Date).Where(day => day <= today)
                 .Distinct().OrderBy(day => day).ToArray();
 
-            var locked = PixelCat.Skins.Where(skin => !IsUnlocked(skin)).ToList();
-            var newlyUnlocked = new List<PixelCat.Skin>();
+            var locked = Catalog.Where(skin => !IsUnlocked(skin)).ToList();
+            var newlyUnlocked = new List<DeskPet.Skin>();
             var through = saved.RewardedThrough;
             DateTime? previous = null;
             int run = 0;
@@ -133,7 +135,7 @@ namespace DailyTodo
             int eligible = Streak;
             if (Streak > 0 && saved.RewardedThrough.HasValue)
                 eligible = Math.Min(Streak, Math.Max(0, (days[last] - saved.RewardedThrough.Value).Days));
-            DaysUntilReward = UnlockedCount == PixelCat.Skins.Count ? 0 : Math.Max(0, DaysPerCat - eligible);
+            DaysUntilReward = UnlockedCount == Catalog.Count ? 0 : Math.Max(0, DaysPerCat - eligible);
         }
 
         private bool Save(Progress progress)

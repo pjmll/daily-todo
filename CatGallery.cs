@@ -10,7 +10,7 @@ namespace DailyTodo
         public CatGallery(Window owner, CatCollection collection)
         {
             Owner = owner;
-            Title = "猫窝";
+            Title = "伙伴小屋";
             Width = 430;
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.NoResize;
@@ -24,26 +24,26 @@ namespace DailyTodo
             var content = new StackPanel { Margin = new Thickness(18, 14, 18, 16) };
             content.Children.Add(new TextBlock
             {
-                Text = "我的猫窝", FontSize = 22, FontWeight = FontWeights.Bold
+                Text = "伙伴小屋", FontSize = 22, FontWeight = FontWeights.Bold
             });
             content.Children.Add(new TextBlock
             {
-                Text = "已收集 " + collection.UnlockedCount + " / " + PixelCat.Skins.Count + " 只",
+                Text = "已收集 " + collection.UnlockedCount + " / " + collection.Catalog.Count + " 只",
                 FontSize = 13, Margin = new Thickness(0, 4, 0, 3)
             });
             var status = new TextBlock
             {
-                Text = collection.HasStorageError ? "暂时无法保存或读取猫窝记录。" :
+                Text = collection.HasStorageError ? "暂时无法保存或读取伙伴记录。" :
                     collection.NewCats != null ? "新伙伴 · " + collection.NewCats :
-                    "连续 " + CatCollection.DaysPerCat + " 天每天完成至少 1 项待办，即可随机解锁一只。",
+                    "连续 " + CatCollection.DaysPerCat + " 天每天完成至少 1 项待办，即可随机解锁一位伙伴。",
                 TextWrapping = TextWrapping.Wrap, FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(82, 104, 93)),
+                Foreground = new SolidColorBrush(Color.FromRgb(83, 103, 76)),
                 Margin = new Thickness(0, 0, 0, 9)
             };
             content.Children.Add(status);
 
             var cards = new UniformGrid { Columns = 4 };
-            foreach (var skin in PixelCat.Skins)
+            foreach (var skin in collection.Catalog)
             {
                 bool unlocked = collection.IsUnlocked(skin);
                 bool selected = collection.Selected == skin;
@@ -51,7 +51,7 @@ namespace DailyTodo
                 {
                     Source = skin.Idle, Width = 65, Height = 50
                 };
-                RenderOptions.SetBitmapScalingMode(face, BitmapScalingMode.NearestNeighbor);
+                DeskPet.SetScaling(face, skin);
                 var preview = new StackPanel();
                 preview.Children.Add(face);
                 preview.Children.Add(new TextBlock
@@ -67,7 +67,8 @@ namespace DailyTodo
                 var card = new Button
                 {
                     Content = preview, Style = (Style)owner.Resources["ActionButton"], IsEnabled = unlocked,
-                    Background = selected ? new SolidColorBrush(Color.FromRgb(220, 239, 224)) : Brushes.White,
+                    Background = selected ? new SolidColorBrush(Color.FromRgb(218, 234, 197)) :
+                        new SolidColorBrush(Color.FromRgb(255, 253, 245)),
                     Margin = new Thickness(3), Padding = new Thickness(3, 7, 3, 7)
                 };
                 card.Click += delegate

@@ -13,12 +13,12 @@ namespace DailyTodo
     internal sealed class TodoCalendar
     {
         private static readonly CultureInfo Chinese = CultureInfo.GetCultureInfo("zh-CN");
-        private static readonly Brush DayBackground = new SolidColorBrush(Color.FromRgb(246, 248, 245));
-        private static readonly Brush CompletedBackground = new SolidColorBrush(Color.FromRgb(234, 244, 234));
-        private static readonly Brush SelectedBackground = new SolidColorBrush(Color.FromRgb(215, 233, 217));
-        private static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(37, 101, 77));
-        private static readonly Brush TodayOutline = new SolidColorBrush(Color.FromRgb(154, 184, 168));
-        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(86, 109, 96));
+        private static readonly Brush DayBackground = new SolidColorBrush(Color.FromRgb(246, 242, 224));
+        private static readonly Brush CompletedBackground = new SolidColorBrush(Color.FromRgb(226, 239, 211));
+        private static readonly Brush SelectedBackground = new SolidColorBrush(Color.FromRgb(210, 235, 238));
+        private static readonly Brush Accent = new SolidColorBrush(Color.FromRgb(60, 96, 65));
+        private static readonly Brush TodayOutline = new SolidColorBrush(Color.FromRgb(143, 171, 123));
+        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(83, 103, 76));
 
         private readonly UniformGrid days;
         private readonly TextBlock monthTitle;

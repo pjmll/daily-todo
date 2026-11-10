@@ -331,14 +331,14 @@ namespace DailyTodo
     internal sealed class TodoBoard
     {
         private static readonly CultureInfo Chinese = CultureInfo.GetCultureInfo("zh-CN");
-        private static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(28, 48, 40));
-        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(82, 104, 93));
-        private static readonly Brush RowBorder = new SolidColorBrush(Color.FromRgb(227, 235, 230));
+        private static readonly Brush Ink = new SolidColorBrush(Color.FromRgb(53, 71, 51));
+        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(83, 103, 76));
+        private static readonly Brush RowBorder = new SolidColorBrush(Color.FromRgb(233, 231, 207));
         private static readonly Brush LateText = new SolidColorBrush(Color.FromRgb(150, 53, 34));
         private static readonly Brush LateBackground = new SolidColorBrush(Color.FromRgb(253, 237, 229));
-        private static readonly Brush AccentText = new SolidColorBrush(Color.FromRgb(20, 99, 77));
-        private static readonly Brush AccentBackground = new SolidColorBrush(Color.FromRgb(232, 244, 235));
-        private static readonly Brush NeutralBackground = new SolidColorBrush(Color.FromRgb(240, 244, 241));
+        private static readonly Brush AccentText = new SolidColorBrush(Color.FromRgb(59, 90, 63));
+        private static readonly Brush AccentBackground = new SolidColorBrush(Color.FromRgb(222, 237, 209));
+        private static readonly Brush NeutralBackground = new SolidColorBrush(Color.FromRgb(238, 239, 218));
 
         private readonly TaskStore store;
         private readonly TextBox quickTitle;
@@ -358,7 +358,7 @@ namespace DailyTodo
         private readonly ScrollViewer taskScroll;
         private readonly Grid progressTrack;
         private readonly Border progressFill;
-        private readonly PixelCat cat;
+        private readonly DeskPet cat;
         private readonly CatCollection cats;
         private List<TodoTask> tasks;
         private DateTime shownDay;
@@ -404,7 +404,7 @@ namespace DailyTodo
             taskScroll = Find<ScrollViewer>("TaskScroll");
             progressTrack = Find<Grid>("ProgressTrack");
             progressFill = Find<Border>("ProgressFill");
-            cat = new PixelCat(Find<Image>("ProgressCat"));
+            cat = new DeskPet(Find<Image>("ProgressCat"));
             cats = new CatCollection(Path.Combine(Path.GetDirectoryName(store.FilePath), "cats.json"));
             Find<Button>("CatTapButton").Click += delegate { cat.Play(false); };
             Find<Button>("CatGalleryButton").Click += delegate
@@ -815,7 +815,12 @@ namespace DailyTodo
             countLabel.Text = overdue > 0 ? overdue + " 项逾期" : visible.Count + " 项";
             Find<StackPanel>("EmptyPanel").Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (visible.Count == 0)
-                Find<Image>("EmptyCat").Source = showToday && finished > 0 ? cats.Selected.Happy : cats.Selected.Sleeping;
+            {
+                var pet = cats.Selected;
+                var picture = Find<Image>("EmptyCat");
+                DeskPet.SetScaling(picture, pet);
+                picture.Source = showToday && finished > 0 ? pet.Happy : pet.Sleeping;
+            }
             Find<TextBlock>("EmptyTitle").Text = emptyTitle;
             Find<TextBlock>("EmptyHint").Text = emptyHint;
             if (focusIndex >= 0)
@@ -836,12 +841,12 @@ namespace DailyTodo
             cat.ShowSkin(skin);
             var tap = Find<Button>("CatTapButton");
             AutomationProperties.SetName(tap, "和" + skin.Name + "互动");
-            tap.ToolTip = skin.Name + " · 点一下拍爪";
+            tap.ToolTip = skin.Name + " · 点一下打招呼";
             var gallery = Find<Button>("CatGalleryButton");
-            gallery.Content = cats.NewCats == null ? "猫窝" : "猫窝 · 新";
-            gallery.ToolTip = cats.NewCats == null ? "查看和切换已解锁的小猫" : "新伙伴 · " + cats.NewCats;
-            string goal = cats.UnlockedCount == PixelCat.Skins.Count ? "全员到齐" :
-                cats.DaysUntilReward == 0 ? "小猫待解锁" : "再做 " + cats.DaysUntilReward + " 天解锁";
+            gallery.Content = cats.NewCats == null ? "伙伴小屋" : "伙伴小屋 · 新";
+            gallery.ToolTip = cats.NewCats == null ? "查看和切换已解锁的伙伴" : "新伙伴 · " + cats.NewCats;
+            string goal = cats.UnlockedCount == cats.Catalog.Count ? "全员到齐" :
+                cats.DaysUntilReward == 0 ? "伙伴待解锁" : "再做 " + cats.DaysUntilReward + " 天解锁";
             Find<TextBlock>("CatStreak").Text = "连续 " + cats.Streak + " 天 · " + goal;
         }
 

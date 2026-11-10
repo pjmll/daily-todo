@@ -11,7 +11,7 @@ namespace DailyTodo
     {
         private const int Custom = 3;
         private static readonly string[] WeekdayNames = { "周一", "周二", "周三", "周四", "周五", "周六", "周日" };
-        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(82, 104, 93));
+        private static readonly Brush Muted = new SolidColorBrush(Color.FromRgb(83, 103, 76));
         private readonly ComboBox options;
         private readonly CheckBox[] weekdays;
         private readonly Border weekdayRow;
@@ -83,7 +83,7 @@ namespace DailyTodo
             {
                 Child = week, CornerRadius = new CornerRadius(7), Margin = new Thickness(0, 6, 0, 0),
                 Padding = new Thickness(8, 7, 8, 7),
-                Background = new SolidColorBrush(Color.FromRgb(239, 245, 240))
+                Background = new SolidColorBrush(Color.FromRgb(237, 242, 219))
             };
             Children.Add(weekdayRow);
             options.SelectionChanged += delegate
