@@ -15,16 +15,21 @@ namespace DailyTodo
         private readonly ComboBox options;
         private readonly CheckBox[] weekdays;
         private readonly Border weekdayRow;
+        private readonly bool requireRepeat;
 
         public event Action Changed;
-        public bool IsRepeating { get { return options.SelectedIndex > 0; } }
-        public bool IsValid { get { return options.SelectedIndex != Custom || Days != 0; } }
+        private int SelectedRule
+        {
+            get { return options.SelectedIndex < 0 ? 0 : options.SelectedIndex + (requireRepeat ? 1 : 0); }
+        }
+        public bool IsRepeating { get { return SelectedRule != 0; } }
+        public bool IsValid { get { return (!requireRepeat || IsRepeating) && (SelectedRule != Custom || Days != 0); } }
 
         public int Days
         {
             get
             {
-                switch (options.SelectedIndex)
+                switch (SelectedRule)
                 {
                     case 1: return TodoTask.EveryDay;
                     case 2: return TodoTask.Weekdays;
@@ -38,23 +43,21 @@ namespace DailyTodo
             }
         }
 
-        public RepeatPicker(int initialDays, FrameworkElement trailing = null)
+        public RepeatPicker(int initialDays, bool requireRepeat = false)
         {
+            this.requireRepeat = requireRepeat;
+            int initialRule = initialDays == 0 ? 0 : initialDays == TodoTask.EveryDay ? 1 :
+                initialDays == TodoTask.Weekdays ? 2 : Custom;
             options = new ComboBox
             {
-                ItemsSource = new[] { "不重复", "每天", "工作日", "每周指定" },
-                SelectedIndex = initialDays == 0 ? 0 : initialDays == TodoTask.EveryDay ? 1 :
-                    initialDays == TodoTask.Weekdays ? 2 : Custom,
+                ItemsSource = requireRepeat ? new[] { "每天", "工作日", "每周指定" } :
+                    new[] { "不重复", "每天", "工作日", "每周指定" },
+                SelectedIndex = requireRepeat ? Math.Max(0, initialRule - 1) : initialRule,
                 Width = 104, Height = 28, FontSize = 12,
                 HorizontalAlignment = HorizontalAlignment.Left, VerticalContentAlignment = VerticalAlignment.Center
             };
 
             var header = new DockPanel();
-            if (trailing != null)
-            {
-                DockPanel.SetDock(trailing, Dock.Right);
-                header.Children.Add(trailing);
-            }
             var label = new Label
             {
                 Content = "重复", Target = options, FontSize = 12, Foreground = Muted,
@@ -109,7 +112,7 @@ namespace DailyTodo
 
         private void UpdateWeekdayVisibility()
         {
-            weekdayRow.Visibility = options.SelectedIndex == Custom ? Visibility.Visible : Visibility.Collapsed;
+            weekdayRow.Visibility = SelectedRule == Custom ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void NotifyChanged()

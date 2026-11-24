@@ -343,8 +343,11 @@ namespace DailyTodo
         private readonly TaskStore store;
         private readonly TextBox quickTitle;
         private readonly Button addButton;
-        private readonly RepeatPicker repeatQuick;
+        private readonly RepeatPicker planRepeatQuick;
+        private readonly RepeatPicker requiredRepeatQuick;
         private readonly TextBlock quickHint;
+        private readonly StackPanel quickOptions;
+        private readonly Button quickOptionsButton;
         private readonly ComboBox quickWhen;
         private readonly DatePicker quickDate;
         private readonly TextBox quickReminder;
@@ -360,11 +363,11 @@ namespace DailyTodo
         private readonly Border progressFill;
         private readonly DeskPet cat;
         private readonly CatCollection cats;
+        private readonly HashSet<Guid> expandedCompletionGroups = new HashSet<Guid>();
         private List<TodoTask> tasks;
         private DateTime shownDay;
         private double progress;
         private bool compactLayout;
-
         public Window Window { get; private set; }
         public event Action<IList<TodoTask>> RemindersDue;
         public bool HasActiveReminders
@@ -384,13 +387,13 @@ namespace DailyTodo
 
             quickTitle = Find<TextBox>("QuickTitle");
             addButton = Find<Button>("AddButton");
-            quickHint = new TextBlock
-            {
-                Text = "按 Enter 快速添加", Foreground = Muted, FontSize = 12, MaxWidth = 184,
-                VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap
-            };
-            repeatQuick = new RepeatPicker(0, quickHint);
-            Find<ContentControl>("QuickRepeatHost").Content = repeatQuick;
+            quickHint = Find<TextBlock>("QuickHint");
+            quickOptions = Find<StackPanel>("QuickOptions");
+            quickOptionsButton = Find<Button>("QuickOptionsButton");
+            planRepeatQuick = new RepeatPicker(0);
+            requiredRepeatQuick = new RepeatPicker(0, requireRepeat: true);
+            Find<ContentControl>("QuickRepeatHost").Content = planRepeatQuick;
+            Find<ContentControl>("QuickRequiredRepeatHost").Content = requiredRepeatQuick;
             quickWhen = Find<ComboBox>("QuickWhen");
             quickDate = Find<DatePicker>("QuickDate");
             quickReminder = Find<TextBox>("QuickReminder");
@@ -428,13 +431,10 @@ namespace DailyTodo
             };
             quickTitle.KeyDown += addOnEnter;
             quickReminder.KeyDown += addOnEnter;
-            quickWhen.SelectionChanged += delegate
-            {
-                quickDate.Visibility = quickWhen.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
-                UpdateQuickAdd();
-            };
+            quickWhen.SelectionChanged += delegate { UpdateQuickAdd(); };
             quickDate.SelectedDateChanged += delegate { UpdateQuickAdd(); };
-            repeatQuick.Changed += UpdateQuickAdd;
+            planRepeatQuick.Changed += UpdateQuickAdd;
+            requiredRepeatQuick.Changed += UpdateQuickAdd;
             quickReminder.TextChanged += delegate
             {
                 Find<TextBlock>("ReminderPlaceholder").Visibility = quickReminder.Text.Length == 0
@@ -442,6 +442,12 @@ namespace DailyTodo
                 UpdateQuickAdd();
             };
             addButton.Click += delegate { AddTask(); };
+            quickOptionsButton.Click += delegate
+            {
+                quickOptions.Visibility = quickOptions.Visibility == Visibility.Visible
+                    ? Visibility.Collapsed : Visibility.Visible;
+                UpdateQuickAdd();
+            };
             todayTab.Checked += ChangeView;
             upcomingTab.Checked += ChangeView;
             repeatTab.Checked += ChangeView;
@@ -462,7 +468,7 @@ namespace DailyTodo
             Window.CommandBindings.Add(new CommandBinding(
                 ApplicationCommands.New, delegate
                 {
-                    if (calendarTab.IsChecked == true) todayTab.IsChecked = true;
+                    if (calendarTab.IsChecked == true || doneTab.IsChecked == true) todayTab.IsChecked = true;
                     quickTitle.Focus();
                 }));
 
@@ -472,6 +478,7 @@ namespace DailyTodo
             Window.Loaded += delegate { quickTitle.Focus(); };
             Window.SizeChanged += (sender, args) => UpdateDensity(args.NewSize.Height);
             Window.Closed += delegate { clock.Stop(); cat.Stop(); };
+            UpdateQuickCaptureView();
             Refresh(DateTime.Today);
             clock.Start();
         }
@@ -483,6 +490,7 @@ namespace DailyTodo
 
         private void ChangeView(object sender, RoutedEventArgs args)
         {
+            UpdateQuickCaptureView();
             Refresh(DateTime.Today);
             taskScroll.ScrollToTop();
             Find<ScrollViewer>("CalendarView").ScrollToTop();
@@ -566,45 +574,97 @@ namespace DailyTodo
         private DateTime? QuickDueDate()
         {
             var today = DateTime.Today;
-            if (quickWhen.SelectedIndex == 2) return quickDate.SelectedDate;
-            return quickWhen.SelectedIndex == 1 ? today.AddDays(1) : today;
+            if (todayTab.IsChecked == true || repeatTab.IsChecked == true) return today;
+            if (upcomingTab.IsChecked != true) return null;
+            switch (quickWhen.SelectedIndex)
+            {
+                case 0: return today;
+                case 1: return today.AddDays(1);
+                case 2: return quickDate.SelectedDate;
+                default: return null;
+            }
+        }
+
+        private RepeatPicker QuickRepeatPicker()
+        {
+            if (repeatTab.IsChecked == true) return requiredRepeatQuick;
+            return upcomingTab.IsChecked == true ? planRepeatQuick : null;
+        }
+
+        private string ValidateQuickSchedule(DateTime? due, RepeatPicker repeat, out int? minute)
+        {
+            if (!TryReadReminder(quickReminder.Text, out minute)) return "请输入 24 小时时间，例如 09:30";
+            if (!due.HasValue) return "请选择待办日期";
+            if (repeat != null && !repeat.IsValid) return repeat.IsRepeating ? "请至少勾选一天" : "请选择重复规则";
+            return "";
         }
 
         private void UpdateQuickAdd()
         {
+            var repeat = QuickRepeatPicker();
             int? minute;
-            bool validTime = TryReadReminder(quickReminder.Text, out minute);
-            bool hasDate = QuickDueDate().HasValue;
-            addButton.IsEnabled = validTime && hasDate && repeatQuick.IsValid && !string.IsNullOrWhiteSpace(quickTitle.Text);
-            quickHint.Text = !validTime ? "请输入 24 小时时间，例如 09:30" :
-                !hasDate ? "请在日历中选择日期" : !repeatQuick.IsValid ? "请至少勾选一天" : "按 Enter 快速添加";
-            quickHint.Foreground = validTime && repeatQuick.IsValid ? Muted : LateText;
+            var error = ValidateQuickSchedule(QuickDueDate(), repeat, out minute);
+            addButton.IsEnabled = error.Length == 0 && !string.IsNullOrWhiteSpace(quickTitle.Text);
+            quickHint.Text = error;
+            quickHint.Visibility = error.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
+            bool showPlan = upcomingTab.IsChecked == true;
+            Find<StackPanel>("QuickDateRow").Visibility = showPlan && quickWhen.SelectedIndex == 2
+                ? Visibility.Visible : Visibility.Collapsed;
+            bool expanded = quickOptions.Visibility == Visibility.Visible;
+            bool hasOptions = (showPlan && planRepeatQuick.IsRepeating) || !string.IsNullOrWhiteSpace(quickReminder.Text);
+            string optionLabel = showPlan ? "更多" : "提醒";
+            string optionDescription = showPlan ? "提醒和重复选项" : "提醒选项";
+            quickOptionsButton.Content = expanded ? "收起" : hasOptions ? optionLabel + " •" : optionLabel;
+            quickOptionsButton.ToolTip = (expanded ? "收起" : hasOptions ? "查看已填写的" : "设置") + optionDescription;
+            AutomationProperties.SetName(quickOptionsButton, (string)quickOptionsButton.ToolTip);
+        }
+
+        private void UpdateQuickCaptureView()
+        {
+            bool showPlan = upcomingTab.IsChecked == true;
+            bool showRepeat = repeatTab.IsChecked == true;
+            quickWhen.Visibility = showPlan ? Visibility.Visible : Visibility.Collapsed;
+            Find<Border>("QuickTodayDate").Visibility = todayTab.IsChecked == true ? Visibility.Visible : Visibility.Collapsed;
+            Find<ContentControl>("QuickRepeatHost").Visibility = showPlan ? Visibility.Visible : Visibility.Collapsed;
+            Find<ContentControl>("QuickRequiredRepeatHost").Visibility = showRepeat ? Visibility.Visible : Visibility.Collapsed;
+            Find<TextBlock>("Placeholder").Text = showRepeat ? "添加一项重复待办…" :
+                showPlan ? "添加一项待办…" : "添加一项今天要做的事…";
+            UpdateQuickAdd();
         }
 
         private void AddTask()
         {
             var title = quickTitle.Text.Trim();
             var due = QuickDueDate();
+            var repeat = QuickRepeatPicker();
+            bool fromRepeat = repeatTab.IsChecked == true;
             int? minute;
-            if (title.Length == 0 || !due.HasValue || !repeatQuick.IsValid ||
-                !TryReadReminder(quickReminder.Text, out minute)) return;
+            if (title.Length == 0 || ValidateQuickSchedule(due, repeat, out minute).Length != 0) return;
 
             var task = new TodoTask
             {
                 Id = Guid.NewGuid(), Title = title, Due = due.Value.Date, ReminderMinute = minute,
-                RepeatDays = repeatQuick.Days
+                RepeatDays = repeat != null ? repeat.Days : 0
             };
             var next = new List<TodoTask>(tasks) { task };
             if (!Commit(next)) return;
             quickTitle.Clear();
-            repeatQuick.Reset();
-            quickWhen.SelectedIndex = 0;
-            quickDate.SelectedDate = null;
+            if (repeat != null) repeat.Reset();
+            if (upcomingTab.IsChecked == true)
+            {
+                quickWhen.SelectedIndex = 1;
+                quickDate.SelectedDate = null;
+            }
             quickReminder.Clear();
+            quickOptions.Visibility = Visibility.Collapsed;
             var today = DateTime.Today;
-            if (task.Due > today) upcomingTab.IsChecked = true;
-            else if (task.IsRecurring && !task.OccursOn(today)) repeatTab.IsChecked = true;
-            else todayTab.IsChecked = true;
+            if (!fromRepeat)
+            {
+                if (task.Due > today) upcomingTab.IsChecked = true;
+                else if (task.IsRecurring && !task.OccursOn(today)) repeatTab.IsChecked = true;
+                else todayTab.IsChecked = true;
+            }
+            UpdateQuickAdd();
             cat.Play(false);
             quickTitle.Focus();
         }
@@ -699,6 +759,13 @@ namespace DailyTodo
             Commit(next);
         }
 
+        private void RescheduleOverdue(TodoTask task, int daysAhead)
+        {
+            var today = DateTime.Today;
+            if (task.Completed.HasValue || task.IsRecurring || task.Due >= today) return;
+            ReplaceTask(task, task.Title, today.AddDays(daysAhead), null, 0, task.ReminderMinute);
+        }
+
         private void UpdateProgressBar()
         {
             progressFill.Width = Math.Floor(progressTrack.ActualWidth * progress);
@@ -717,15 +784,13 @@ namespace DailyTodo
             var summary = Find<Border>("TodaySummary");
             summary.Margin = sectionSpacing;
             summary.Padding = compact ? new Thickness(12, 4, 12, 6) : new Thickness(14, 9, 14, 11);
-            Find<TextBlock>("ProgressTitle").Visibility = compact ? Visibility.Collapsed : Visibility.Visible;
-            Find<TextBlock>("RemainingLabel").FontSize = compact ? 22 : 28;
             var catImage = Find<Image>("ProgressCat");
-            catImage.Width = compact ? 52 : 65;
-            catImage.Height = compact ? 40 : 50;
+            catImage.Width = compact ? 46 : 54;
+            catImage.Height = compact ? 36 : 42;
             var capture = Find<Border>("QuickCapture");
             capture.Margin = sectionSpacing;
-            capture.Padding = new Thickness(compact ? 9 : 12);
-            quickTitle.Height = compact ? 34 : 39;
+            capture.Padding = new Thickness(compact ? 8 : 10);
+            quickTitle.Height = compact ? 33 : 36;
         }
 
         private HashSet<Guid> CompletedSeriesOn(DateTime day)
@@ -746,16 +811,17 @@ namespace DailyTodo
             int total = today.Count + finished;
             progress = total == 0 ? 0 : (double)finished / total;
             Find<TextBlock>("DateLabel").Text = shownDay.ToString("yyyy年M月d日  dddd", Chinese);
-            Find<TextBlock>("ProgressLabel").Text = total == 0 ? "今天暂无任务" : string.Format("完成 {0} / {1} 项", finished, total);
-            Find<TextBlock>("RemainingLabel").Text = today.Count.ToString(Chinese);
+            Find<TextBlock>("ProgressLabel").Text = total == 0 ? "今天暂无任务" :
+                string.Format("完成 {0}/{1} 项   ·   剩余 {2} 项", finished, total, today.Count);
             UpdateProgressBar();
             cats.Refresh(tasks, day);
             UpdateCatDisplay();
 
             bool showCalendar = calendarTab.IsChecked == true;
             bool showToday = todayTab.IsChecked == true;
+            bool showCompleted = doneTab.IsChecked == true;
             Find<Border>("TodaySummary").Visibility = showToday ? Visibility.Visible : Visibility.Collapsed;
-            Find<Border>("QuickCapture").Visibility = showCalendar ? Visibility.Collapsed : Visibility.Visible;
+            Find<Border>("QuickCapture").Visibility = showCalendar || showCompleted ? Visibility.Collapsed : Visibility.Visible;
             Find<Grid>("ListHeader").Visibility = showCalendar ? Visibility.Collapsed : Visibility.Visible;
             Find<ScrollViewer>("CalendarView").Visibility = showCalendar ? Visibility.Visible : Visibility.Collapsed;
             taskScroll.Visibility = showCalendar ? Visibility.Collapsed : Visibility.Visible;
@@ -783,9 +849,9 @@ namespace DailyTodo
                 visible = open.Where(task => task.IsRecurring).ToList();
                 listTitle = "重复事项";
                 emptyTitle = "暂无重复事项";
-                emptyHint = "添加待办时可设置每天、工作日或每周指定日期。";
+                emptyHint = "在上方添加重复待办，可选每天、工作日或每周指定。";
             }
-            else if (doneTab.IsChecked == true)
+            else if (showCompleted)
             {
                 visible = tasks.Where(task => task.Completed.HasValue).Reverse()
                     .OrderByDescending(task => task.Completed).ToList();
@@ -801,18 +867,25 @@ namespace DailyTodo
                 emptyHint = finished == 0 ? "从上方添加一件想做的事。" : "已完成的事项可以在「已完成」里查看。";
             }
 
-            var focusedRow = taskList.Children.OfType<Border>().FirstOrDefault(row => row.IsKeyboardFocusWithin);
-            int focusIndex = focusedRow == null ? -1 : taskList.Children.IndexOf(focusedRow);
+            var previousRows = taskList.Children.OfType<Border>().ToList();
+            int focusIndex = previousRows.FindIndex(row => row.IsKeyboardFocusWithin);
+            var focusedGroup = showCompleted ? taskList.Children.OfType<Expander>()
+                .FirstOrDefault(group => group.IsKeyboardFocusWithin) : null;
             taskList.Children.Clear();
-            foreach (var task in visible) taskList.Children.Add(CreateRow(task));
+            if (showToday)
+            {
+                AddTodaySection("逾期", visible.Where(task => IsOverdue(task, day)), true);
+                var dueToday = visible.Where(task => !IsOverdue(task, day));
+                AddTodaySection("今日有提醒", dueToday.Where(task => task.ReminderMinute.HasValue)
+                    .OrderBy(task => task.ReminderMinute.Value));
+                AddTodaySection("今日其他", dueToday.Where(task => !task.ReminderMinute.HasValue));
+            }
+            else if (showCompleted) AddCompletionGroups(visible, focusedGroup);
+            else foreach (var task in visible) taskList.Children.Add(CreateRow(task));
             Find<TextBlock>("ListTitle").Text = listTitle;
-            int overdue = showToday ? today.Count(task => !task.IsRecurring && task.Due < day) : 0;
             var countPill = Find<Border>("CountPill");
-            countPill.Visibility = showToday && overdue == 0 ? Visibility.Collapsed : Visibility.Visible;
-            countPill.Background = overdue > 0 ? LateBackground : NeutralBackground;
-            var countLabel = Find<TextBlock>("CountLabel");
-            countLabel.Foreground = overdue > 0 ? LateText : Muted;
-            countLabel.Text = overdue > 0 ? overdue + " 项逾期" : visible.Count + " 项";
+            countPill.Visibility = showToday ? Visibility.Collapsed : Visibility.Visible;
+            Find<TextBlock>("CountLabel").Text = showCompleted ? "共完成 " + visible.Count + " 次" : visible.Count + " 项";
             Find<StackPanel>("EmptyPanel").Visibility = visible.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
             if (visible.Count == 0)
             {
@@ -823,16 +896,104 @@ namespace DailyTodo
             }
             Find<TextBlock>("EmptyTitle").Text = emptyTitle;
             Find<TextBlock>("EmptyHint").Text = emptyHint;
-            if (focusIndex >= 0)
+            if (!showCompleted && focusIndex >= 0)
             {
                 if (visible.Count == 0) quickTitle.Focus();
                 else
                 {
-                    var row = (Border)taskList.Children[Math.Min(focusIndex, visible.Count - 1)];
+                    var rows = taskList.Children.OfType<Border>().ToList();
+                    var previousId = previousRows[focusIndex].Tag;
+                    var row = rows.FirstOrDefault(entry => Equals(entry.Tag, previousId)) ??
+                        rows[Math.Min(focusIndex, rows.Count - 1)];
                     var cells = ((Grid)row.Child).Children;
                     if (!cells[0].Focus()) ((StackPanel)cells[2]).Children[0].Focus();
                 }
             }
+        }
+
+        private void AddCompletionGroups(List<TodoTask> records, Expander focusedGroup)
+        {
+            var groups = records.GroupBy(task => task.SeriesId ?? task.Id).ToList();
+            expandedCompletionGroups.IntersectWith(groups.Select(group => group.Key));
+            Expander focusTarget = null;
+            foreach (var group in groups)
+            {
+                string title = group.First().Title;
+                string count = group.Count() + " 次";
+                var heading = new Grid();
+                heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                heading.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                heading.Children.Add(new TextBlock
+                {
+                    Text = title, Foreground = Ink, TextWrapping = TextWrapping.Wrap,
+                    FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 8, 0)
+                });
+                var badge = TaskBadge(count, AccentText, AccentBackground);
+                badge.Margin = new Thickness(0);
+                badge.VerticalAlignment = VerticalAlignment.Center;
+                Grid.SetColumn(badge, 1);
+                heading.Children.Add(badge);
+
+                var item = new Expander
+                {
+                    Header = heading, Tag = group.Key, Style = (Style)Window.Resources["CompletionGroup"]
+                };
+                AutomationProperties.SetName(item, title + "，完成 " + count);
+                item.Expanded += delegate
+                {
+                    expandedCompletionGroups.Add(group.Key);
+                    var dates = new StackPanel { Margin = new Thickness(13, 0, 0, 2) };
+                    foreach (var record in group) dates.Children.Add(CreateRow(record, showCompletionDateOnly: true));
+                    item.Content = dates;
+                };
+                item.Collapsed += delegate
+                {
+                    expandedCompletionGroups.Remove(group.Key);
+                    item.Content = null;
+                };
+                item.IsExpanded = expandedCompletionGroups.Contains(group.Key);
+                taskList.Children.Add(item);
+                if (focusedGroup != null && Equals(focusedGroup.Tag, group.Key)) focusTarget = item;
+            }
+            if (focusedGroup == null) return;
+            focusTarget = focusTarget ?? taskList.Children.OfType<Expander>().FirstOrDefault();
+            if (focusTarget == null) doneTab.Focus();
+            else
+            {
+                focusTarget.ApplyTemplate();
+                var header = (ToggleButton)focusTarget.Template.FindName("HistoryToggle", focusTarget);
+                header.Focus();
+            }
+        }
+
+        private static bool IsOverdue(TodoTask task, DateTime day)
+        {
+            return !task.Completed.HasValue && !task.IsRecurring && task.Due < day;
+        }
+
+        private void AddTodaySection(string title, IEnumerable<TodoTask> sectionTasks, bool overdue = false)
+        {
+            var group = sectionTasks.ToList();
+            if (group.Count == 0) return;
+            var heading = new StackPanel
+            {
+                Orientation = Orientation.Horizontal, Background = overdue ? LateBackground : NeutralBackground,
+                Margin = new Thickness(0, taskList.Children.Count == 0 ? 1 : 9, 0, 1)
+            };
+            var foreground = overdue ? LateText : AccentText;
+            heading.Children.Add(new TextBlock
+            {
+                Text = title, Foreground = foreground, FontSize = 12, FontWeight = FontWeights.SemiBold,
+                Margin = new Thickness(8, 4, 7, 4)
+            });
+            heading.Children.Add(new TextBlock
+            {
+                Text = group.Count + " 项", Foreground = foreground, FontSize = 11,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 7, 0)
+            });
+            taskList.Children.Add(heading);
+            foreach (var task in group) taskList.Children.Add(CreateRow(task));
         }
 
         private void UpdateCatDisplay()
@@ -850,10 +1011,13 @@ namespace DailyTodo
             Find<TextBlock>("CatStreak").Text = "连续 " + cats.Streak + " 天 · " + goal;
         }
 
-        private Border CreateRow(TodoTask task)
+        private Border CreateRow(TodoTask task, bool showCompletionDateOnly = false)
         {
             bool done = task.Completed.HasValue;
-            bool late = !done && !task.IsRecurring && task.Due < shownDay;
+            bool showToday = todayTab.IsChecked == true;
+            bool late = IsOverdue(task, shownDay);
+            string rowTitle = showCompletionDateOnly
+                ? task.Completed.Value.ToString("yyyy年M月d日  dddd", Chinese) : task.Title;
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -865,10 +1029,10 @@ namespace DailyTodo
                 Style = (Style)Window.Resources["TaskCheck"],
                 HorizontalAlignment = HorizontalAlignment.Left,
                 ToolTip = task.SeriesId.HasValue ? "撤销当天完成" : done ? "恢复为未完成" : "标记完成",
-                Visibility = task.IsRecurring && todayTab.IsChecked != true
+                Visibility = task.IsRecurring && !showToday
                     ? Visibility.Collapsed : Visibility.Visible
             };
-            AutomationProperties.SetName(check, check.ToolTip + " " + task.Title);
+            AutomationProperties.SetName(check, check.ToolTip + " " + rowTitle);
             check.Click += delegate
             {
                 check.IsChecked = done;
@@ -880,52 +1044,93 @@ namespace DailyTodo
             var details = new StackPanel { Margin = new Thickness(0, 3, 7, 0) };
             var title = new TextBlock
             {
-                Text = task.Title, TextWrapping = TextWrapping.Wrap,
-                Foreground = done ? Muted : Ink, FontWeight = done ? FontWeights.Normal : FontWeights.SemiBold,
-                TextDecorations = done ? TextDecorations.Strikethrough : null
+                Text = rowTitle,
+                TextWrapping = TextWrapping.Wrap, Foreground = done ? Muted : Ink,
+                FontWeight = done ? FontWeights.Normal : FontWeights.SemiBold
             };
             details.Children.Add(title);
-            var badges = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            if (late) badges.Children.Add(TaskBadge("逾期 · " + date, LateText, LateBackground));
-            else if (done) badges.Children.Add(TaskBadge("完成于 " + date, Muted, NeutralBackground));
-            else if (task.Due > shownDay || (task.IsRecurring && todayTab.IsChecked != true))
-                badges.Children.Add(TaskBadge(task.IsRecurring ? date + " 开始" : date, Muted, NeutralBackground));
-            if (task.IsRecurring || task.SeriesId.HasValue)
-                badges.Children.Add(TaskBadge(task.IsRecurring ? RepeatPicker.Describe(task.RepeatDays) : "重复事项", AccentText, AccentBackground));
-            if (!done && task.ReminderMinute.HasValue)
-                badges.Children.Add(TaskBadge("提醒 " + FormatReminder(task.ReminderMinute.Value), AccentText, AccentBackground));
-            if (badges.Children.Count > 0) details.Children.Add(badges);
+            if (!showCompletionDateOnly)
+            {
+                var badges = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+                if (late) badges.Children.Add(TaskBadge("原定 " + task.Due.ToString("M月d日", Chinese), LateText, LateBackground));
+                else if (task.Due > shownDay || (task.IsRecurring && !showToday))
+                    badges.Children.Add(TaskBadge(task.IsRecurring ? date + " 开始" : date, Muted, NeutralBackground));
+                if (task.IsRecurring || task.SeriesId.HasValue)
+                    badges.Children.Add(TaskBadge(task.IsRecurring ? RepeatPicker.Describe(task.RepeatDays) : "重复事项", AccentText, AccentBackground));
+                if (task.ReminderMinute.HasValue && (!showToday || late))
+                    badges.Children.Add(TaskBadge("提醒 " + FormatReminder(task.ReminderMinute.Value), AccentText, AccentBackground));
+                else if (task.ReminderMinute.HasValue)
+                    badges.Children.Insert(0, TaskBadge(FormatReminder(task.ReminderMinute.Value), AccentText, AccentBackground));
+                if (badges.Children.Count > 0) details.Children.Add(badges);
+            }
             Grid.SetColumn(details, 1);
             grid.Children.Add(details);
 
             var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
-            var edit = ActionButton("编辑");
-            edit.Click += delegate { EditTask(task); };
-            var remove = ActionButton(task.IsRecurring ? "停止重复" : "×");
-            if (!task.IsRecurring) remove.FontSize = 16;
             var removeLabel = task.IsRecurring ? "停止重复" : "删除待办";
-            remove.ToolTip = removeLabel;
-            AutomationProperties.SetName(remove, removeLabel);
-            remove.Click += delegate
+            if (showToday)
             {
-                string message = task.IsRecurring ? "要停止重复这项待办吗？" : "要删除这项待办吗？";
-                if (task.SeriesId.HasValue && task.Due == DateTime.Today &&
-                    tasks.Any(entry => entry.Id == task.SeriesId && entry.OccursOn(task.Due)))
-                    message = "删除这条完成记录？这项待办会重新显示在「今天」。";
-                if (MessageBox.Show(Window, message, removeLabel,
-                    MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes)
-                    RemoveTask(task);
-            };
-            actions.Children.Add(edit);
-            actions.Children.Add(remove);
+                if (late)
+                {
+                    actions.Children.Add(CreateRescheduleButton(task, "移到今天", 0));
+                    actions.Children.Add(CreateRescheduleButton(task, "移到明天", 1));
+                }
+                var more = ActionButton("⋯");
+                more.ToolTip = "更多操作";
+                AutomationProperties.SetName(more, "更多操作：" + task.Title);
+                var menu = new ContextMenu { PlacementTarget = more, Placement = PlacementMode.Bottom };
+                var edit = new MenuItem { Header = "编辑" };
+                edit.Click += delegate { EditTask(task); };
+                var remove = new MenuItem { Header = removeLabel };
+                remove.Click += delegate { ConfirmRemoveTask(task, removeLabel); };
+                menu.Items.Add(edit);
+                menu.Items.Add(remove);
+                more.ContextMenu = menu;
+                more.Click += delegate { menu.IsOpen = true; };
+                actions.Children.Add(more);
+            }
+            else
+            {
+                var edit = ActionButton("编辑");
+                edit.Click += delegate { EditTask(task); };
+                var remove = ActionButton(task.IsRecurring ? "停止重复" : "×");
+                if (!task.IsRecurring) remove.FontSize = 16;
+                remove.ToolTip = removeLabel;
+                AutomationProperties.SetName(remove, removeLabel);
+                remove.Click += delegate { ConfirmRemoveTask(task, removeLabel); };
+                actions.Children.Add(edit);
+                actions.Children.Add(remove);
+            }
             Grid.SetColumn(actions, 2);
             grid.Children.Add(actions);
 
             return new Border
             {
                 Child = grid, BorderBrush = RowBorder, BorderThickness = new Thickness(0, 0, 0, 1),
-                Padding = new Thickness(1, 7, 0, 7)
+                Padding = new Thickness(1, 7, 0, 7), Tag = task.Id
             };
+        }
+
+        private Button CreateRescheduleButton(TodoTask task, string label, int daysAhead)
+        {
+            var button = ActionButton(label);
+            button.Background = NeutralBackground;
+            button.Margin = new Thickness(0, 0, 4, 0);
+            button.Padding = new Thickness(6, 4, 6, 4);
+            AutomationProperties.SetName(button, label + "：" + task.Title);
+            button.Click += delegate { RescheduleOverdue(task, daysAhead); };
+            return button;
+        }
+
+        private void ConfirmRemoveTask(TodoTask task, string removeLabel)
+        {
+            string message = task.IsRecurring ? "要停止重复这项待办吗？" : "要删除这项待办吗？";
+            if (task.SeriesId.HasValue && task.Due == DateTime.Today &&
+                tasks.Any(entry => entry.Id == task.SeriesId && entry.OccursOn(task.Due)))
+                message = "删除这条完成记录？这项待办会重新显示在「今天」。";
+            if (MessageBox.Show(Window, message, removeLabel,
+                MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No) == MessageBoxResult.Yes)
+                RemoveTask(task);
         }
 
         private static Border TaskBadge(string text, Brush foreground, Brush background)

@@ -44,6 +44,57 @@
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
         </Style>
+        <Style x:Key="CompletionGroup" TargetType="Expander">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <StackPanel>
+                            <ToggleButton x:Name="HistoryToggle" Content="{TemplateBinding Header}" Cursor="Hand"
+                                          IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border x:Name="HistorySurface" Background="Transparent" CornerRadius="7"
+                                                BorderThickness="1" BorderBrush="Transparent" Padding="11,8">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter VerticalAlignment="Center"/>
+                                                <Path x:Name="HistoryChevron" Grid.Column="1" Data="M 2,1 L 6,5 L 2,9"
+                                                      Width="9" Height="10" Stroke="#53674C" StrokeThickness="1.5"
+                                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                                                      VerticalAlignment="Center" Margin="11,0,0,0"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter TargetName="HistorySurface" Property="Background" Value="#EEF2DF"/>
+                                                <Setter TargetName="HistoryChevron" Property="Data" Value="M 1,3 L 5,7 L 9,3"/>
+                                            </Trigger>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="HistorySurface" Property="BorderBrush" Value="#B9CAA6"/>
+                                            </Trigger>
+                                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                                <Setter TargetName="HistorySurface" Property="BorderBrush" Value="#668F59"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="HistoryDates" Visibility="Collapsed"/>
+                            <Border Height="1" Background="#E9E7CF" Margin="0,2,0,2"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="HistoryDates" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         <Style x:Key="Field" TargetType="TextBox">
             <Setter Property="Foreground" Value="#354733"/>
             <Setter Property="Background" Value="#FFFCF1"/>
@@ -187,8 +238,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock x:Name="ProgressTitle" Text="今日进度" FontSize="12" Foreground="#4C6845"/>
-                    <TextBlock x:Name="ProgressLabel" FontSize="16" FontWeight="SemiBold" Foreground="#354733" Margin="0,1,0,0"/>
+                    <TextBlock x:Name="ProgressLabel" FontSize="15" FontWeight="SemiBold" Foreground="#354733"/>
                     <StackPanel Orientation="Horizontal" Margin="0,3,0,0">
                         <TextBlock x:Name="CatStreak" FontSize="11" Foreground="#4C6845" VerticalAlignment="Center"/>
                         <Button x:Name="CatGalleryButton" Content="伙伴小屋" FontSize="11" Margin="6,0,0,0"
@@ -196,17 +246,12 @@
                                 Padding="5,1" ToolTip="查看和切换已解锁的伙伴"/>
                     </StackPanel>
                 </StackPanel>
-                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock x:Name="RemainingLabel" FontSize="28" FontWeight="SemiBold" Foreground="#375D39"/>
-                        <TextBlock Text=" 项待办" FontSize="12" Foreground="#4C6845" VerticalAlignment="Bottom" Margin="4,0,0,6"/>
-                    </StackPanel>
-                    <Button x:Name="CatTapButton" Style="{StaticResource ActionButton}" Margin="10,0,0,0"
-                            Padding="1" Background="#FFF8E2" BorderBrush="#C8D9B1" ToolTip="点一下和伙伴互动">
-                        <Image x:Name="ProgressCat" Width="65" Height="50" IsHitTestVisible="False"/>
-                    </Button>
-                </StackPanel>
-                <Border Grid.Row="1" Grid.ColumnSpan="2" CornerRadius="3" Background="#B8CEA3" Height="5" Margin="0,8,0,0">
+                <Button x:Name="CatTapButton" Grid.Column="1" Style="{StaticResource ActionButton}" Margin="10,0,0,0"
+                        VerticalAlignment="Center" Padding="1" Background="#FFF8E2" BorderBrush="#C8D9B1"
+                        ToolTip="点一下和伙伴互动">
+                    <Image x:Name="ProgressCat" Width="54" Height="42" IsHitTestVisible="False"/>
+                </Button>
+                <Border Grid.Row="1" Grid.ColumnSpan="2" CornerRadius="3" Background="#B8CEA3" Height="4" Margin="0,7,0,0">
                     <Grid x:Name="ProgressTrack" ClipToBounds="True">
                         <Border x:Name="ProgressFill" Background="#628D4E" CornerRadius="3"
                                 Width="0" HorizontalAlignment="Left"/>
@@ -216,27 +261,60 @@
         </Border>
 
         <Border x:Name="QuickCapture" Grid.Row="3" Margin="0,0,0,11" Background="#FFFDF5" CornerRadius="12"
-                BorderBrush="#E1E2C8" BorderThickness="1" Padding="12">
+                BorderBrush="#E1E2C8" BorderThickness="1" Padding="10">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
-                <Grid Margin="0,0,8,0">
-                    <TextBox x:Name="QuickTitle" Height="39" MaxLength="200" Padding="11,0"
+                <Grid Margin="0,0,6,0">
+                    <TextBox x:Name="QuickTitle" Height="36" MaxLength="200" Padding="11,0"
                              Style="{StaticResource Field}" AutomationProperties.Name="新待办事项"/>
                     <TextBlock x:Name="Placeholder" Text="添加一项待办…" Foreground="#657254"
                                VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False"/>
                 </Grid>
-                <Button x:Name="AddButton" Grid.Column="1" Content="添加" MinWidth="68"
-                        Style="{StaticResource PrimaryButton}" IsEnabled="False"/>
-                <DockPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="1,8,1,0">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                <ComboBox x:Name="QuickWhen" Grid.Column="1" Width="80" Height="30" FontSize="12" SelectedIndex="1"
+                          BorderBrush="#D7DEBE" VerticalContentAlignment="Center" ToolTip="新待办计划日期"
+                          AutomationProperties.Name="新待办计划日期">
+                    <ComboBoxItem Content="今天"/>
+                    <ComboBoxItem Content="明天"/>
+                    <ComboBoxItem Content="自选日期"/>
+                </ComboBox>
+                <Border x:Name="QuickTodayDate" Grid.Column="1" Background="#E9EFD9" CornerRadius="7"
+                        Padding="10,5" VerticalAlignment="Center" ToolTip="这个页面只添加今天的待办">
+                    <TextBlock Text="今天" Foreground="#476347" FontSize="12"/>
+                </Border>
+                <Button x:Name="QuickOptionsButton" Grid.Column="2" Content="更多" FontSize="12" Padding="5,4"
+                        MinWidth="49" Margin="2,0,3,0" VerticalAlignment="Center" Style="{StaticResource ActionButton}"
+                        ToolTip="设置提醒和重复" AutomationProperties.Name="展开提醒和重复选项"/>
+                <Button x:Name="AddButton" Grid.Column="3" Content="添加" MinWidth="55" Padding="10,5"
+                        Style="{StaticResource PrimaryButton}" IsEnabled="False" ToolTip="添加待办（Enter）"/>
+                <StackPanel x:Name="QuickDateRow" Grid.Row="1" Grid.ColumnSpan="4" Orientation="Horizontal"
+                            Margin="2,8,1,0" Visibility="Collapsed">
+                    <TextBlock Text="日期" FontSize="12" Foreground="#56664A"
+                               VerticalAlignment="Center" Margin="0,0,5,0"/>
+                    <DatePicker x:Name="QuickDate" Width="120" FontSize="12" SelectedDateFormat="Short"
+                                AutomationProperties.Name="选择新待办日期">
+                        <DatePicker.Resources>
+                            <Style TargetType="DatePickerTextBox">
+                                <Setter Property="IsReadOnly" Value="True"/>
+                            </Style>
+                        </DatePicker.Resources>
+                    </DatePicker>
+                </StackPanel>
+                <ContentControl x:Name="QuickRequiredRepeatHost" Grid.Row="2" Grid.ColumnSpan="4" Margin="2,8,1,0"
+                                HorizontalContentAlignment="Stretch" Focusable="False" Visibility="Collapsed"/>
+                <StackPanel x:Name="QuickOptions" Grid.Row="3" Grid.ColumnSpan="4" Margin="2,8,1,0" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal">
                         <TextBlock Text="提醒" Foreground="#56664A" FontSize="12"
                                    VerticalAlignment="Center" Margin="0,0,5,0"/>
                         <Grid>
@@ -247,29 +325,10 @@
                                        FontSize="12" IsHitTestVisible="False" VerticalAlignment="Center" Margin="9,0,0,0"/>
                         </Grid>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="日期" Foreground="#56664A" FontSize="12"
-                                   VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <ComboBox x:Name="QuickWhen" Width="88" Height="28" FontSize="12" SelectedIndex="0"
-                                  BorderBrush="#D7DEBE" VerticalContentAlignment="Center"
-                                  AutomationProperties.Name="新待办计划日期">
-                            <ComboBoxItem Content="今天"/>
-                            <ComboBoxItem Content="明天"/>
-                            <ComboBoxItem Content="自选日期"/>
-                        </ComboBox>
-                        <DatePicker x:Name="QuickDate" Width="105" Margin="5,0,0,0" FontSize="12"
-                                    SelectedDateFormat="Short" Visibility="Collapsed"
-                                    AutomationProperties.Name="选择新待办日期">
-                            <DatePicker.Resources>
-                                <Style TargetType="DatePickerTextBox">
-                                    <Setter Property="IsReadOnly" Value="True"/>
-                                </Style>
-                            </DatePicker.Resources>
-                        </DatePicker>
-                    </StackPanel>
-                </DockPanel>
-                <ContentControl x:Name="QuickRepeatHost" Grid.Row="2" Grid.ColumnSpan="2" Margin="1,7,1,0"
-                                HorizontalContentAlignment="Stretch" Focusable="False"/>
+                    <ContentControl x:Name="QuickRepeatHost" Margin="0,6,0,0" HorizontalContentAlignment="Stretch" Focusable="False"/>
+                </StackPanel>
+                <TextBlock x:Name="QuickHint" Grid.Row="4" Grid.ColumnSpan="4" Margin="2,6,0,0" FontSize="12"
+                           Foreground="#963522" TextWrapping="Wrap" Visibility="Collapsed"/>
             </Grid>
         </Border>
 
